@@ -1,0 +1,149 @@
+.global _start
+_start:
+
+//Store important things in memory to registers
+LDR R0, =HEX_ADDR
+LDR R0, [R0]
+LDR R1, =EDGE_ADDR
+LDR R1, [R1]
+LDR R2, =HEX_BITS
+MOV R3, #1 //Tens counter
+MOV R4, #0 //Ones counter
+MOV R6, #0 //Register to hold Edge Bit
+MOV R7, #1 //Hundreds Counter
+MOV R8, #1 //Thousands Counter
+
+//Set display to read 0
+LDRB R9, [R2, #1]
+STR R9, [R0]
+
+LDR R11, =0xFFFEC600
+LDR R10, =2000000
+STR R10, [R11]
+
+LDR R11, =0xFFFEC608
+MOV R10, #3
+LDR R12, [R11]
+ORR R10, R12
+STR R10, [R11]
+
+LDR R11, =0xFFFEC60C
+STR R12, [R11]
+
+MOV R12, #0
+MAIN: 
+	LDR R12, [R11]
+	STR R12, [R11]
+		
+	DO_DELAY: LDR R11, =0xFFFEC60C
+		LDR R12, [R11]
+		CMP R12, #1
+		BNE DO_DELAY
+
+	//Increment ones
+	ADD R4, #1
+	
+	//Check to see if the edge bit is 1 (indicating if a key was pressed)
+	BL CHECK_FOR_INTER
+	
+	//Increment Tens counter when R4 reaches 9
+	CMP R4, #11 
+	BEQ ADD_TENS 
+	
+	//Increment Hundreds counter when R3 reaches 9
+	CMP R3, #11
+	BEQ ADD_HUNDRED 
+	
+	//Increment Thousands counter
+	CMP R7, #11
+	BEQ ADD_THOUSAND 
+	
+	//Reset the counter when the counter reaches 5999
+	CMP R8, #7
+	BEQ RESET
+	
+	//Display 1000'S
+	LDRB R9, [R2, R8]
+	LSL R9, #8
+	
+	//Display 100'S
+	LDRB R10, [R2, R7]
+	ADD R9, R10
+	LSL R9, #8
+	
+	//Display 10'S
+	LDRB R10, [R2, R3]
+	ADD R9, R10
+	LSL R9, #8
+	
+	//Display 1'S
+	LDRB R10, [R2, R4]
+	ADD R9, R10
+	STR R9, [R0]
+	MOV R9, #0
+	
+	B MAIN
+	
+ADD_TENS:
+	MOV R4, #0
+    ADD R3, #1
+	B MAIN
+
+ADD_HUNDRED:
+	MOV R3, #1
+	ADD R7, #1
+	B MAIN
+
+ADD_THOUSAND:
+	MOV R7, #1
+	ADD R8, #1
+	B MAIN
+
+RESET:
+	MOV R8, #1
+	MOV R3, #1
+	MOV R4, #1
+	MOV R7, #1
+	
+	B MAIN
+	
+CHECK_FOR_INTER:
+	PUSH {R6, R8, R9}
+	
+	//Check Edge Bit, if edge bit is not activated, exit subroutine via SKIP
+	LDR R6, [R1]
+	CMP R6, #1
+	BGE INTER_TRUE
+	B SKIP
+	
+	RETURN:
+	//Wait for Edge Bit to be activated again to restart counter
+	LDR R6, [R1]
+	CMP R6, #1
+	BLT RETURN
+	STR R6, [R1]
+	
+	SKIP:
+	POP {R6, R8, R9}
+	BX LR
+	
+INTER_TRUE:
+	//Clear Display, then reset Edge Bit
+	LDRB R9, [R2]
+	STR R9, [R0]
+	STR R6, [R1]
+
+B RETURN
+
+END: B END
+
+EDGE_ADDR: .WORD 0xFF20005C
+HEX_ADDR: .WORD 0xFF200020
+TIMER_ADDR: .WORD 0xFFFEC600
+KEY_ADDR: .WORD 0xFF200050
+	      .skip 1
+HEX_BITS: .byte 0b00000000, 0b00111111, 0b00000110, 0b01011011, 0b01001111,  0b01100110, 0b01101101, 0b01111101, 0b00000111, 0b01111111, 0b01100111, 0b0000000
+		  .skip 1
+          
+.end
+	

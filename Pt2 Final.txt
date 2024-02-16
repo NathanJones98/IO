@@ -1,0 +1,93 @@
+.global _start
+_start:
+
+//Store important things in memory to registers
+MOV R0, #HEX_ADDR
+LDR R0, [R0]
+MOV R1, #EDGE_ADDR
+LDR R1, [R1]
+MOV R2, #HEX_BITS
+MOV R3, #1 //Tens counter
+MOV R4, #0 //Ones counter
+MOV R6, #0 //Register to hold Edge Bit
+
+//Set display to read 0
+LDRB R9, [R2, #1]
+STR R9, [R0] 
+
+MAIN: 
+
+	DO_DELAY: 	LDR R7, =500000 //=2000000 // delay counter 
+	SUB_LOOP: 	SUBS R7, R7, #1 
+				BNE SUB_LOOP
+	//Increment ones
+	ADD R4, #1
+	
+	//Check to see if the edge bit is 1 (indicating if a key was pressed)
+	BL CHECK_FOR_INTER
+	
+	//Increment Tens counter when R4 reaches 9
+	CMP R4, #11 
+	BEQ ADD_TENS 
+	
+	//Reset the counter when the counter reaches 99
+	CMP R3, #11
+	BEQ RESET 
+	
+	//Display 10's and 1's 
+	LDRB R9, [R2, R3]
+	LDRB R8, [R2, R4]
+	LSL R9, #8
+	ADD R9, R8
+	STR R9, [R0]
+	MOV R9, #0
+	B MAIN
+	
+ADD_TENS:
+	MOV R4, #0
+    	ADD R3, #1
+	B MAIN
+
+RESET:
+	MOV R3, #1
+	MOV R4, #1
+	B MAIN
+	
+CHECK_FOR_INTER:
+	PUSH {R6, R8, R9}
+	
+	//Check Edge Bit, if edge bit is not activated, exit subroutine via SKIP
+	LDR R6, [R1]
+	CMP R6, #1
+	BGE INTER_TRUE
+	B SKIP
+	
+	RETURN:
+	//Wait for Edge Bit to be activated again to restart counter
+	LDR R6, [R1]
+	CMP R6, #1
+	BLT RETURN
+	STR R6, [R1]
+	
+	SKIP:
+	POP {R6, R8, R9}
+	BX LR
+	
+INTER_TRUE:
+	//Clear Display, then reset Edge Bit
+	LDRB R9, [R2]
+	STR R9, [R0]
+	STR R6, [R1]
+
+B RETURN
+
+END: B END
+
+EDGE_ADDR: .WORD 0xFF20005C
+HEX_ADDR: .WORD 0xFF200020
+KEY_ADDR: .WORD 0xFF200050
+	      .skip 1
+HEX_BITS: .byte 0b00000000, 0b00111111, 0b00000110, 0b01011011, 0b01001111,  0b01100110, 0b01101101, 0b01111101, 0b00000111, 0b01111111, 0b01100111, 0b0000000
+		  .skip 1
+          
+.end

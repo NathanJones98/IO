@@ -1,0 +1,109 @@
+.global _start
+_start:
+
+//Store important things in memory to registers
+MOV R0, #HEX_ADDR
+LDR R0, [R0]
+MOV R1, #KEY_ADDR
+LDR R1, [R1]
+MOV R2, #HEX_BITS
+MOV R3, #0
+
+MOV R6, #0
+MOV R9, #0
+
+//Clear R2
+LDRB R9, [R2, #1]
+STR R9, [R0] 
+
+MAIN: 
+	
+	//R6 Holds value of which key is pressed
+	LDR R7, [R1]
+ 	MOV R6, R7
+	
+	//Wait for a key Press
+	CMP R7, #0
+	BEQ MAIN
+	
+	//Wait for the key to be released	
+	WAIT:
+		LDR R7, [R1]
+		CMP R7, #0
+		BNE WAIT
+	
+	//See if KEY0 was pressed
+	CMP R6, #1
+	BEQ KEY_ZERO
+	
+	//See if KEY1 was pressed
+	CMP R6, #2
+	BEQ KEY_ONE
+
+	//See if KEY2 was pressed
+	CMP R6, #4
+	BEQ KEY_TWO
+
+	//See if KEY3 was pressed
+	CMP R6, #8
+	BEQ KEY_THREE
+
+	B MAIN
+
+//Reset to Zero
+KEY_ZERO:
+	LDRB R9, [R2, #1]
+	STR R9, [R0]
+	MOV R9, #0
+	MOV R3, #0
+	B MAIN
+
+//Increase the display by 1
+KEY_ONE:
+	ADD R3, #1
+	LDRB R9, [R2, R3]
+	STR R9, [R0]
+	MOV R9, #0
+	B MAIN
+
+//Decrease the display by 1
+KEY_TWO:
+	SUB R3, #1
+	LDRB R9, [R2, R3]
+	STR R9, [R0]
+	MOV R9, #0
+	B MAIN
+
+//Clear the display and wait for a key press
+KEY_THREE:
+	LDRB R9, [R2]
+	STR R9, [R0]
+	MOV R3, #0
+	
+	//Wait for a key to be pressed
+	WAIT_PRESS:
+		LDR R7, [R1]
+		CMP R7, #0
+		BEQ WAIT_PRESS
+	
+	LDRB R9, [R2, #1]
+	STR R9, [R0] 
+	
+	//Wait for the reset key to be released
+	WAIT_RELEASE:
+		LDR R7, [R1]
+		CMP R7, #0
+		BNE WAIT_RELEASE
+	
+	MOV R9, #0
+	B MAIN
+
+END: B END
+
+HEX_ADDR: .WORD 0xFF200020
+KEY_ADDR: .WORD 0xFF200050
+	      .skip 1
+HEX_BITS: .byte 0b00000000, 0b00111111, 0b00000110, 0b01011011, 0b01001111,  0b01100110, 0b01101101, 0b01111101, 0b00000111, 0b01111111, 0b01100111, 0b0000000
+		  .skip 1
+          
+.end
